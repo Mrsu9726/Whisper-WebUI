@@ -1,0 +1,449 @@
+Subject: [PATCH] 修改API服务端使用的whisper type
+---
+Index: app.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app.py b/app.py
+--- a/app.py	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/app.py	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -331,7 +331,7 @@
+ 
+ 
+ parser = argparse.ArgumentParser()
+-parser.add_argument('--whisper_type', type=str, default=WhisperImpl.FASTER_WHISPER.value,
++parser.add_argument('--whisper_type', type=str, default=WhisperImpl.WHISPER.value,
+                     choices=[item.value for item in WhisperImpl],
+                     help='A type of the whisper implementation (Github repo name)')
+ parser.add_argument('--share', type=str2bool, default=False, nargs='?', const=True, help='Gradio share value')
+Index: backend/configs/config.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/configs/config.yaml b/backend/configs/config.yaml
+--- a/backend/configs/config.yaml	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/backend/configs/config.yaml	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -1,6 +1,6 @@
+ whisper:
+   # Default implementation is faster-whisper. This indicates model name within `models\Whisper\faster-whisper`
+-  model_size: large-v2
++  model_size: medium
+   # Compute type. 'float16' for CUDA, 'float32' for CPU.
+   compute_type: float16
+   # Whether to offload the model after the inference.
+Index: backend/routers/transcription/router.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/routers/transcription/router.py b/backend/routers/transcription/router.py
+--- a/backend/routers/transcription/router.py	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/backend/routers/transcription/router.py	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -12,7 +12,7 @@
+ from datetime import datetime
+ from modules.whisper.data_classes import *
+ from modules.utils.paths import BACKEND_CACHE_DIR
+-from modules.whisper.faster_whisper_inference import FasterWhisperInference
++from modules.whisper.whisper_Inference import WhisperInference
+ from backend.common.audio import read_audio
+ from backend.common.models import QueueResponse
+ from backend.common.config_loader import load_server_config
+@@ -41,9 +41,9 @@
+ 
+ 
+ @functools.lru_cache
+-def get_pipeline() -> 'FasterWhisperInference':
++def get_pipeline() -> 'WhisperInference':
+     config = load_server_config()["whisper"]
+-    inferencer = FasterWhisperInference(
++    inferencer = WhisperInference(
+         output_dir=BACKEND_CACHE_DIR
+     )
+     inferencer.update_model(
+Index: configs/default_parameters.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/configs/default_parameters.yaml b/configs/default_parameters.yaml
+--- a/configs/default_parameters.yaml	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/configs/default_parameters.yaml	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -1,5 +1,5 @@
+ whisper:
+-  model_size: medium
++  model_size: tiny
+   lang: Automatic Detection
+   is_translate: false
+   beam_size: 5
+Index: modules/whisper/data_classes.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/modules/whisper/data_classes.py b/modules/whisper/data_classes.py
+--- a/modules/whisper/data_classes.py	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/modules/whisper/data_classes.py	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -368,7 +368,7 @@
+                          available_langs: Optional[List] = None,
+                          available_compute_types: Optional[List] = None,
+                          compute_type: Optional[str] = None):
+-        whisper_type = WhisperImpl.FASTER_WHISPER.value if whisper_type is None else whisper_type.strip().lower()
++        whisper_type = WhisperImpl.WHISPER.value if whisper_type is None else whisper_type.strip().lower()
+ 
+         inputs = []
+         if not only_advanced:
+Index: notebook/whisper-webui.ipynb
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/notebook/whisper-webui.ipynb b/notebook/whisper-webui.ipynb
+--- a/notebook/whisper-webui.ipynb	(revision 9165b91262c8468bf190cb5743c021517f457cb2)
++++ b/notebook/whisper-webui.ipynb	(revision 90242dba22d2e0a95238b0813456e2babadf125f)
+@@ -1,172 +1,172 @@
+ {
+-  "cells": [
+-    {
+-      "cell_type": "markdown",
+-      "source": [
+-        "---\n",
+-        "\n",
+-        "📌 **This notebook has been updated [here](https://github.com/jhj0517/Whisper-WebUI.git)!**\n",
+-        "\n",
+-        "🖋 **Author**: [jhj0517](https://github.com/jhj0517/Whisper-WebUI/blob/master/notebook/whisper-webui.ipynb)\n",
+-        "\n",
+-        "😎 **Support the Project**:\n",
+-        "\n",
+-        "If you find this project useful, please consider supporting it:\n",
+-        "\n",
+-        "<a href=\"https://ko-fi.com/jhj0517\" target=\"_blank\">\n",
+-        "    <img src=\"https://storage.ko-fi.com/cdn/kofi2.png?v=3\" alt=\"Buy Me a Coffee at ko-fi.com\" height=\"36\">\n",
+-        "</a>\n",
+-        "\n",
+-        "---"
+-      ],
+-      "metadata": {
+-        "id": "doKhBBXIfS21"
+-      }
+-    },
+-    {
+-      "cell_type": "code",
+-      "source": [
+-        "#@title #(Optional) Check GPU\n",
+-        "#@markdown Some models may not function correctly on a CPU runtime.\n",
+-        "\n",
+-        "#@markdown so you should check your GPU setup before run.\n",
+-        "!nvidia-smi"
+-      ],
+-      "metadata": {
+-        "id": "23yZvUlagEsx",
+-        "cellView": "form"
+-      },
+-      "execution_count": null,
+-      "outputs": []
+-    },
+-    {
+-      "cell_type": "code",
+-      "execution_count": null,
+-      "metadata": {
+-        "id": "kNbSbsctxahq",
+-        "cellView": "form"
+-      },
+-      "outputs": [],
+-      "source": [
+-        "#@title #Installation\n",
+-        "#@markdown This cell will install dependencies for Whisper-WebUI!\n",
+-        "!git clone https://github.com/jhj0517/Whisper-WebUI.git\n",
+-        "%cd Whisper-WebUI\n",
+-        "!pip install git+https://github.com/jhj0517/jhj0517-whisper.git\n",
+-        "!pip install faster-whisper==1.1.1\n",
+-        "!pip install gradio\n",
+-        "!pip install gradio-i18n\n",
+-        "# Temporal bug fix from https://github.com/jhj0517/Whisper-WebUI/issues/256\n",
+-        "!pip install git+https://github.com/JuanBindez/pytubefix.git\n",
+-        "!pip install pyannote.audio==3.3.1\n",
+-        "!pip install git+https://github.com/jhj0517/ultimatevocalremover_api.git"
+-      ]
+-    },
+-    {
+-      "cell_type": "code",
+-      "source": [
+-        "#@title # (Optional) Mount Google Drive\n",
+-        "#@markdown Uploading large input files directly via UI may consume alot of time because it has to be uploaded in colab's server.\n",
+-        "#@markdown <br>This section is for using the input file paths from Google Drive to reduce such file uploading time.\n",
+-        "#@markdown <br>For example, you can first upload the input file to Google Drive and use the directroy path in the \"Input Folder Path\" input, as shown below.\n",
+-        "\n",
+-        "#@markdown ![image](https://github.com/user-attachments/assets/85330905-e3ec-4502-bc4b-b9d1c5b41aa2)\n",
+-        "\n",
+-        "#@markdown <br>And it will mount the output paths to your Google Drive's as well. This section is optional and can be ignored.\n",
+-        "\n",
+-        "\n",
+-        "# Mount Google Drive\n",
+-        "from google.colab import drive\n",
+-        "import os\n",
+-        "drive.mount('/content/drive')\n",
+-        "\n",
+-        "\n",
+-        "# Symlink Output Paths for Whisper-WebUI\n",
+-        "import os\n",
+-        "\n",
+-        "OUTPUT_DIRECTORY_PATH = '/content/drive/MyDrive/Whisper-WebUI/outputs'  # @param {type:\"string\"}\n",
+-        "local_output_path = '/content/Whisper-WebUI/outputs'\n",
+-        "os.makedirs(local_output_path, exist_ok=True)\n",
+-        "os.makedirs(OUTPUT_DIRECTORY_PATH, exist_ok=True)\n",
+-        "\n",
+-        "if os.path.exists(local_output_path):\n",
+-        "    !rm -r \"$local_output_path\"\n",
+-        "\n",
+-        "os.symlink(OUTPUT_DIRECTORY_PATH, local_output_path)\n",
+-        "!ls \"$local_output_path\""
+-      ],
+-      "metadata": {
+-        "cellView": "form",
+-        "id": "y2DY5oSb9Bol"
+-      },
+-      "execution_count": null,
+-      "outputs": []
+-    },
+-    {
+-      "cell_type": "code",
+-      "source": [
+-        "#@title # (Optional) Configure arguments\n",
+-        "#@markdown This section is used to configure some command line arguments.\n",
+-        "\n",
+-        "#@markdown You can simply ignore this section and the default values will be used.\n",
+-        "\n",
+-        "USERNAME = '' #@param {type: \"string\"}\n",
+-        "PASSWORD = '' #@param {type: \"string\"}\n",
+-        "WHISPER_TYPE = 'faster-whisper' # @param [\"whisper\", \"faster-whisper\", \"insanely_fast_whisper\"]\n",
+-        "THEME = '' #@param {type: \"string\"}\n",
+-        "\n",
+-        "arguments = \"\"\n",
+-        "if USERNAME:\n",
+-        "  arguments += f\" --username {USERNAME}\"\n",
+-        "if PASSWORD:\n",
+-        "  arguments += f\" --password {PASSWORD}\"\n",
+-        "if THEME:\n",
+-        "  arguments += f\" --theme {THEME}\"\n",
+-        "if WHISPER_TYPE:\n",
+-        "  arguments += f\" --whisper_type {WHISPER_TYPE}\"\n",
+-        "\n",
+-        "\n",
+-        "#@markdown If you wonder how these arguments are used, you can see the [Wiki](https://github.com/jhj0517/Whisper-WebUI/wiki/Command-Line-Arguments)."
+-      ],
+-      "metadata": {
+-        "id": "Qosz9BFlGui3",
+-        "cellView": "form"
+-      },
+-      "execution_count": null,
+-      "outputs": []
+-    },
+-    {
+-      "cell_type": "code",
+-      "execution_count": 2,
+-      "metadata": {
+-        "id": "PQroYRRZzQiN",
+-        "cellView": "form"
+-      },
+-      "outputs": [],
+-      "source": [
+-        "#@title #Run\n",
+-        "#@markdown Once the installation is complete, you can use public URL that is displayed.\n",
+-        "if 'arguments' in locals():\n",
+-        "  !python app.py --share --colab --allowed_path \"['/content/Whisper-WebUI/outputs']\"{arguments}\n",
+-        "else:\n",
+-        "    !python app.py --share --colab --allowed_path \"['/content/Whisper-WebUI/outputs']\""
+-      ]
+-    }
+-  ],
+-  "metadata": {
+-    "colab": {
+-      "provenance": [],
+-      "gpuType": "T4"
+-    },
+-    "kernelspec": {
+-      "display_name": "Python 3",
+-      "name": "python3"
+-    },
+-    "language_info": {
+-      "name": "python"
+-    },
+-    "accelerator": "GPU"
+-  },
+-  "nbformat": 4,
+-  "nbformat_minor": 0
+-}
+\ No newline at end of file
++ "cells": [
++  {
++   "cell_type": "markdown",
++   "source": [
++    "---\n",
++    "\n",
++    "📌 **This notebook has been updated [here](https://github.com/jhj0517/Whisper-WebUI.git)!**\n",
++    "\n",
++    "🖋 **Author**: [jhj0517](https://github.com/jhj0517/Whisper-WebUI/blob/master/notebook/whisper-webui.ipynb)\n",
++    "\n",
++    "😎 **Support the Project**:\n",
++    "\n",
++    "If you find this project useful, please consider supporting it:\n",
++    "\n",
++    "<a href=\"https://ko-fi.com/jhj0517\" target=\"_blank\">\n",
++    "    <img src=\"https://storage.ko-fi.com/cdn/kofi2.png?v=3\" alt=\"Buy Me a Coffee at ko-fi.com\" height=\"36\">\n",
++    "</a>\n",
++    "\n",
++    "---"
++   ],
++   "metadata": {
++    "id": "doKhBBXIfS21"
++   }
++  },
++  {
++   "cell_type": "code",
++   "source": [
++    "#@title #(Optional) Check GPU\n",
++    "#@markdown Some models may not function correctly on a CPU runtime.\n",
++    "\n",
++    "#@markdown so you should check your GPU setup before run.\n",
++    "!nvidia-smi"
++   ],
++   "metadata": {
++    "id": "23yZvUlagEsx",
++    "cellView": "form"
++   },
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "execution_count": null,
++   "metadata": {
++    "id": "kNbSbsctxahq",
++    "cellView": "form"
++   },
++   "outputs": [],
++   "source": [
++    "#@title #Installation\n",
++    "#@markdown This cell will install dependencies for Whisper-WebUI!\n",
++    "!git clone https://github.com/jhj0517/Whisper-WebUI.git\n",
++    "%cd Whisper-WebUI\n",
++    "!pip install git+https://github.com/jhj0517/jhj0517-whisper.git\n",
++    "!pip install faster-whisper==1.1.1\n",
++    "!pip install gradio\n",
++    "!pip install gradio-i18n\n",
++    "# Temporal bug fix from https://github.com/jhj0517/Whisper-WebUI/issues/256\n",
++    "!pip install git+https://github.com/JuanBindez/pytubefix.git\n",
++    "!pip install pyannote.audio==3.3.1\n",
++    "!pip install git+https://github.com/jhj0517/ultimatevocalremover_api.git"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "source": [
++    "#@title # (Optional) Mount Google Drive\n",
++    "#@markdown Uploading large input files directly via UI may consume alot of time because it has to be uploaded in colab's server.\n",
++    "#@markdown <br>This section is for using the input file paths from Google Drive to reduce such file uploading time.\n",
++    "#@markdown <br>For example, you can first upload the input file to Google Drive and use the directroy path in the \"Input Folder Path\" input, as shown below.\n",
++    "\n",
++    "#@markdown ![image](https://github.com/user-attachments/assets/85330905-e3ec-4502-bc4b-b9d1c5b41aa2)\n",
++    "\n",
++    "#@markdown <br>And it will mount the output paths to your Google Drive's as well. This section is optional and can be ignored.\n",
++    "\n",
++    "\n",
++    "# Mount Google Drive\n",
++    "from google.colab import drive\n",
++    "import os\n",
++    "drive.mount('/content/drive')\n",
++    "\n",
++    "\n",
++    "# Symlink Output Paths for Whisper-WebUI\n",
++    "import os\n",
++    "\n",
++    "OUTPUT_DIRECTORY_PATH = '/content/drive/MyDrive/Whisper-WebUI/outputs'  # @param {type:\"string\"}\n",
++    "local_output_path = '/content/Whisper-WebUI/outputs'\n",
++    "os.makedirs(local_output_path, exist_ok=True)\n",
++    "os.makedirs(OUTPUT_DIRECTORY_PATH, exist_ok=True)\n",
++    "\n",
++    "if os.path.exists(local_output_path):\n",
++    "    !rm -r \"$local_output_path\"\n",
++    "\n",
++    "os.symlink(OUTPUT_DIRECTORY_PATH, local_output_path)\n",
++    "!ls \"$local_output_path\""
++   ],
++   "metadata": {
++    "cellView": "form",
++    "id": "y2DY5oSb9Bol"
++   },
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "source": [
++    "#@title # (Optional) Configure arguments\n",
++    "#@markdown This section is used to configure some command line arguments.\n",
++    "\n",
++    "#@markdown You can simply ignore this section and the default values will be used.\n",
++    "\n",
++    "USERNAME = '' #@param {type: \"string\"}\n",
++    "PASSWORD = '' #@param {type: \"string\"}\n",
++    "WHISPER_TYPE = 'whisper' # @param [\"whisper\", \"faster-whisper\", \"insanely_fast_whisper\"]\n",
++    "THEME = '' #@param {type: \"string\"}\n",
++    "\n",
++    "arguments = \"\"\n",
++    "if USERNAME:\n",
++    "  arguments += f\" --username {USERNAME}\"\n",
++    "if PASSWORD:\n",
++    "  arguments += f\" --password {PASSWORD}\"\n",
++    "if THEME:\n",
++    "  arguments += f\" --theme {THEME}\"\n",
++    "if WHISPER_TYPE:\n",
++    "  arguments += f\" --whisper_type {WHISPER_TYPE}\"\n",
++    "\n",
++    "\n",
++    "#@markdown If you wonder how these arguments are used, you can see the [Wiki](https://github.com/jhj0517/Whisper-WebUI/wiki/Command-Line-Arguments)."
++   ],
++   "metadata": {
++    "id": "Qosz9BFlGui3",
++    "cellView": "form"
++   },
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "execution_count": 2,
++   "metadata": {
++    "id": "PQroYRRZzQiN",
++    "cellView": "form"
++   },
++   "outputs": [],
++   "source": [
++    "#@title #Run\n",
++    "#@markdown Once the installation is complete, you can use public URL that is displayed.\n",
++    "if 'arguments' in locals():\n",
++    "  !python app.py --share --colab --allowed_path \"['/content/Whisper-WebUI/outputs']\"{arguments}\n",
++    "else:\n",
++    "    !python app.py --share --colab --allowed_path \"['/content/Whisper-WebUI/outputs']\""
++   ]
++  }
++ ],
++ "metadata": {
++  "colab": {
++   "provenance": [],
++   "gpuType": "T4"
++  },
++  "kernelspec": {
++   "display_name": "Python 3",
++   "name": "python3"
++  },
++  "language_info": {
++   "name": "python"
++  },
++  "accelerator": "GPU"
++ },
++ "nbformat": 4,
++ "nbformat_minor": 0
++}
