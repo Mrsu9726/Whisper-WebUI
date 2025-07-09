@@ -50,6 +50,7 @@ def get_pipeline() -> 'WhisperInference':
         model_size=config["model_size"],
         compute_type=config["compute_type"]
     )
+    print(f"Whisper implementation: {inferencer.__class__.__name__}")
     return inferencer
 
 
