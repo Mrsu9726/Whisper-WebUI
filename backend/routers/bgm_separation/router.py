@@ -24,7 +24,7 @@ from backend.db.task.dao import add_task_to_db, update_task_status_in_db
 from .models import BGMSeparationResult
 
 
-bgm_separation_router = APIRouter(prefix="/bgm-separation", tags=["BGM Separation"])
+bgm_separation_router = APIRouter(prefix="/bgm-separation", tags=["BGM Separation"], redirect_slashes=False)
 
 
 @functools.lru_cache
@@ -84,7 +84,7 @@ def run_bgm_separation(
 
 
 @bgm_separation_router.post(
-    "/",
+    "",
     response_model=QueueResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Separate Background BGM abd vocal",

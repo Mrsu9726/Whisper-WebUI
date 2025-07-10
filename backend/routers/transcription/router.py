@@ -24,7 +24,7 @@ from backend.db.task.dao import (
 )
 from backend.db.task.models import TaskStatus, TaskType
 
-transcription_router = APIRouter(prefix="/transcription", tags=["Transcription"])
+transcription_router = APIRouter(prefix="/transcription", tags=["Transcription"], redirect_slashes=False)
 
 
 def create_progress_callback(identifier: str):
@@ -95,7 +95,7 @@ def run_transcription(
 
 
 @transcription_router.post(
-    "/",
+    "",
     response_model=QueueResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Transcribe Audio",

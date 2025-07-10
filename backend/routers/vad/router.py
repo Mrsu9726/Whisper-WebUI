@@ -17,7 +17,7 @@ from backend.common.models import QueueResponse
 from backend.db.task.dao import add_task_to_db, update_task_status_in_db
 from backend.db.task.models import TaskStatus, TaskType
 
-vad_router = APIRouter(prefix="/vad", tags=["Voice Activity Detection"])
+vad_router = APIRouter(prefix="/vad", tags=["Voice Activity Detection"], redirect_slashes=False)
 
 
 @functools.lru_cache
@@ -63,7 +63,7 @@ def run_vad(
 
 
 @vad_router.post(
-    "/",
+    "",
     response_model=QueueResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Voice Activity Detection",

@@ -21,7 +21,7 @@ from backend.common.models import (
 from backend.common.compresser import compress_files, find_file_by_hash
 from modules.utils.paths import BACKEND_CACHE_DIR
 
-task_router = APIRouter(prefix="/task", tags=["Tasks"])
+task_router = APIRouter(prefix="/task", tags=["Tasks"], redirect_slashes=False)
 
 
 @task_router.get(
