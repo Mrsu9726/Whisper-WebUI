@@ -1,0 +1,244 @@
+Subject: [PATCH] 添加队列服务
+---
+Index: backend/common/task_manager.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/common/task_manager.py b/backend/common/task_manager.py
+new file mode 100644
+--- /dev/null	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
++++ b/backend/common/task_manager.py	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -0,0 +1,31 @@
++import asyncio
++from typing import Callable, Any, Tuple
++
++class TaskManager:
++    """Simple async task queue for background processing."""
++    def __init__(self, workers: int = 1):
++        self.queue: asyncio.Queue[Tuple[Callable, tuple, dict]] = asyncio.Queue()
++        self.workers = workers
++        self.worker_tasks = []
++
++    async def start(self):
++        """Start worker tasks."""
++        for _ in range(self.workers):
++            self.worker_tasks.append(asyncio.create_task(self._worker()))
++
++    async def _worker(self):
++        while True:
++            func, args, kwargs = await self.queue.get()
++            try:
++                await asyncio.to_thread(func, *args, **kwargs)
++            finally:
++                self.queue.task_done()
++
++    async def add_task(self, func: Callable, *args: Any, **kwargs: Any):
++        await self.queue.put((func, args, kwargs))
++
++
++# Global task manager instance
++# The number of workers can be tuned according to your hardware
++# One worker is often enough since Whisper models are GPU intensive
++manager = TaskManager()
+Index: backend/configs/config.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/configs/config.yaml b/backend/configs/config.yaml
+--- a/backend/configs/config.yaml	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/backend/configs/config.yaml	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -2,7 +2,7 @@
+   # Default implementation is faster-whisper. This indicates model name within `models\Whisper\faster-whisper`
+   model_size: medium
+   # Compute type. 'float16' for CUDA, 'float32' for CPU.
+-  compute_type: float16
++  compute_type: float32
+   # Whether to offload the model after the inference.
+   enable_offload: true
+ 
+@@ -12,7 +12,7 @@
+   # Whether to offload the model after the inference. Should be true if your setup has a VRAM less than <16GB
+   enable_offload: true
+   # Device to load BGM separation model between ["cuda", "cpu", "xpu"]
+-  device: cuda
++  device: cpu
+ 
+ # Settings that apply to the `cache' directory. The output files for `/bgm-separation` are stored in the `cache' directory,
+ # (You can check out the actual generated files by testing `/bgm-separation`.)
+Index: backend/main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/main.py b/backend/main.py
+--- a/backend/main.py	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/backend/main.py	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -14,6 +14,7 @@
+ from backend.routers.bgm_separation.router import get_bgm_separation_inferencer, bgm_separation_router
+ from backend.routers.task.router import task_router
+ from backend.common.config_loader import read_env, load_server_config
++from backend.common.task_manager import manager as task_manager
+ from backend.common.cache_manager import cleanup_old_files
+ from modules.utils.paths import SERVER_CONFIG_PATH, BACKEND_CACHE_DIR
+ 
+@@ -52,6 +53,9 @@
+     cache_thread = clean_cache_thread(server_config["cache"]["ttl"], server_config["cache"]["frequency"])
+     cache_thread.start()
+ 
++    # Start background task manager workers
++    await task_manager.start()
++
+     yield
+ 
+     # Release VRAM when server shutdown
+Index: backend/routers/bgm_separation/router.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/routers/bgm_separation/router.py b/backend/routers/bgm_separation/router.py
+--- a/backend/routers/bgm_separation/router.py	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/backend/routers/bgm_separation/router.py	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -5,7 +5,8 @@
+     UploadFile,
+ )
+ import gradio as gr
+-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
++from fastapi import APIRouter, Depends, Response, status
++from backend.common.task_manager import manager as task_manager
+ from fastapi.responses import FileResponse
+ from typing import List, Dict, Tuple
+ from datetime import datetime
+@@ -90,7 +91,6 @@
+     description="Separate background music and vocal from an uploaded audio or video file.",
+ )
+ async def bgm_separation(
+-    background_tasks: BackgroundTasks,
+     file: UploadFile = File(..., description="Audio or video file to separate background music."),
+     params: BGMSeparationParams = Depends()
+ ) -> QueueResponse:
+@@ -107,7 +107,7 @@
+         task_params=params.model_dump(),
+     )
+ 
+-    background_tasks.add_task(
++    await task_manager.add_task(
+         run_bgm_separation,
+         audio=audio,
+         params=params,
+Index: backend/routers/transcription/router.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/routers/transcription/router.py b/backend/routers/transcription/router.py
+--- a/backend/routers/transcription/router.py	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/backend/routers/transcription/router.py	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -6,7 +6,8 @@
+     UploadFile,
+ )
+ import gradio as gr
+-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
++from fastapi import APIRouter, Depends, Response, status
++from backend.common.task_manager import manager as task_manager
+ from typing import List, Dict
+ from sqlalchemy.orm import Session
+ from datetime import datetime
+@@ -101,7 +102,6 @@
+     description="Process the provided audio or video file to generate a transcription.",
+ )
+ async def transcription(
+-    background_tasks: BackgroundTasks,
+     file: UploadFile = File(..., description="Audio or video file to transcribe."),
+     whisper_params: WhisperParams = Depends(),
+     vad_params: VadParams = Depends(),
+@@ -129,7 +129,7 @@
+         task_params=params.to_dict(),
+     )
+ 
+-    background_tasks.add_task(
++    await task_manager.add_task(
+         run_transcription,
+         audio=audio,
+         params=params,
+Index: backend/routers/vad/router.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/backend/routers/vad/router.py b/backend/routers/vad/router.py
+--- a/backend/routers/vad/router.py	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/backend/routers/vad/router.py	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -5,7 +5,8 @@
+     File,
+     UploadFile,
+ )
+-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
++from fastapi import APIRouter, Depends, Response, status
++from backend.common.task_manager import manager as task_manager
+ from typing import List, Dict
+ from datetime import datetime
+ 
+@@ -69,7 +70,6 @@
+     description="Detect voice parts in the provided audio or video file to generate a timeline of speech segments.",
+ )
+ async def vad(
+-    background_tasks: BackgroundTasks,
+     file: UploadFile = File(..., description="Audio or video file to detect voices."),
+     params: VadParams = Depends()
+ ) -> QueueResponse:
+@@ -94,7 +94,7 @@
+         task_params=params.model_dump(),
+     )
+ 
+-    background_tasks.add_task(run_vad, audio=audio, params=vad_options, identifier=identifier)
++    await task_manager.add_task(run_vad, audio=audio, params=vad_options, identifier=identifier)
+ 
+     return QueueResponse(identifier=identifier, status=TaskStatus.QUEUED, message="VAD task has queued")
+ 
+Index: configs/default_parameters.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/configs/default_parameters.yaml b/configs/default_parameters.yaml
+--- a/configs/default_parameters.yaml	(revision 4af08bb6cd3e5792118475e1da688520327e662a)
++++ b/configs/default_parameters.yaml	(revision 268eaaaf81a0afd8798a500805faf296004bb304)
+@@ -1,11 +1,11 @@
+ whisper:
+-  model_size: tiny
++  model_size: large-v2
+   lang: Automatic Detection
+   is_translate: false
+   beam_size: 5
+   log_prob_threshold: -1.0
+   no_speech_threshold: 0.6
+-  compute_type: float32
++  compute_type: float16
+   best_of: 5
+   patience: 1.0
+   condition_on_previous_text: true
+@@ -38,17 +38,17 @@
+   threshold: 0.5
+   min_speech_duration_ms: 250
+   max_speech_duration_s: 9999
+-  min_silence_duration_ms: 1000
+-  speech_pad_ms: 2000
++  min_silence_duration_ms: 2000
++  speech_pad_ms: 400
+ diarization:
+   is_diarize: false
+-  diarization_device: cpu
++  diarization_device: cuda
+   hf_token: ''
+   enable_offload: true
+ bgm_separation:
+   is_separate_bgm: false
+   uvr_model_size: UVR-MDX-NET-Inst_HQ_4
+-  uvr_device: cpu
++  uvr_device: cuda
+   segment_size: 256
+   save_file: false
+   enable_offload: true

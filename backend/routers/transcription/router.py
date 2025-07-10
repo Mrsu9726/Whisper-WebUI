@@ -6,7 +6,8 @@ from fastapi import (
     UploadFile,
 )
 import gradio as gr
-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status
+from backend.common.task_manager import manager as task_manager
 from typing import List, Dict
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -101,7 +102,6 @@ def run_transcription(
     description="Process the provided audio or video file to generate a transcription.",
 )
 async def transcription(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Audio or video file to transcribe."),
     whisper_params: WhisperParams = Depends(),
     vad_params: VadParams = Depends(),
@@ -129,7 +129,7 @@ async def transcription(
         task_params=params.to_dict(),
     )
 
-    background_tasks.add_task(
+    await task_manager.add_task(
         run_transcription,
         audio=audio,
         params=params,

@@ -14,6 +14,7 @@ from backend.routers.vad.router import get_vad_model, vad_router
 from backend.routers.bgm_separation.router import get_bgm_separation_inferencer, bgm_separation_router
 from backend.routers.task.router import task_router
 from backend.common.config_loader import read_env, load_server_config
+from backend.common.task_manager import manager as task_manager
 from backend.common.cache_manager import cleanup_old_files
 from modules.utils.paths import SERVER_CONFIG_PATH, BACKEND_CACHE_DIR
 
@@ -46,6 +47,9 @@ async def lifespan(app: FastAPI):
     # Thread initialization
     cache_thread = clean_cache_thread(server_config["cache"]["ttl"], server_config["cache"]["frequency"])
     cache_thread.start()
+
+    # Start background task manager workers
+    await task_manager.start()
 
     yield
 

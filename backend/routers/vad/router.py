@@ -5,7 +5,8 @@ from fastapi import (
     File,
     UploadFile,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status
+from backend.common.task_manager import manager as task_manager
 from typing import List, Dict
 from datetime import datetime
 
@@ -69,7 +70,6 @@ def run_vad(
     description="Detect voice parts in the provided audio or video file to generate a timeline of speech segments.",
 )
 async def vad(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Audio or video file to detect voices."),
     params: VadParams = Depends()
 ) -> QueueResponse:
@@ -94,7 +94,7 @@ async def vad(
         task_params=params.model_dump(),
     )
 
-    background_tasks.add_task(run_vad, audio=audio, params=vad_options, identifier=identifier)
+    await task_manager.add_task(run_vad, audio=audio, params=vad_options, identifier=identifier)
 
     return QueueResponse(identifier=identifier, status=TaskStatus.QUEUED, message="VAD task has queued")
 

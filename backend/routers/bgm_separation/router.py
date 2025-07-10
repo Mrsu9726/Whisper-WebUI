@@ -5,7 +5,8 @@ from fastapi import (
     UploadFile,
 )
 import gradio as gr
-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status
+from backend.common.task_manager import manager as task_manager
 from fastapi.responses import FileResponse
 from typing import List, Dict, Tuple
 from datetime import datetime
@@ -90,7 +91,6 @@ def run_bgm_separation(
     description="Separate background music and vocal from an uploaded audio or video file.",
 )
 async def bgm_separation(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Audio or video file to separate background music."),
     params: BGMSeparationParams = Depends()
 ) -> QueueResponse:
@@ -107,7 +107,7 @@ async def bgm_separation(
         task_params=params.model_dump(),
     )
 
-    background_tasks.add_task(
+    await task_manager.add_task(
         run_bgm_separation,
         audio=audio,
         params=params,
