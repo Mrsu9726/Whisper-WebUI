@@ -100,6 +100,7 @@ class FasterWhisperInference(BaseTranscriptionPipeline):
             language_detection_threshold=params.language_detection_threshold,
             language_detection_segments=params.language_detection_segments,
             prompt_reset_on_temperature=params.prompt_reset_on_temperature,
+            batch_size=params.batch_size,
         )
         progress(0, desc="Loading audio..")
 

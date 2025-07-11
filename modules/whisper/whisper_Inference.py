@@ -62,18 +62,21 @@ class WhisperInference(BaseTranscriptionPipeline):
         def progress_callback(progress_value):
             progress(progress_value, desc="Transcribing..")
 
-        result = self.model.transcribe(audio=audio,
-                                       language=params.lang,
-                                       verbose=False,
-                                       beam_size=params.beam_size,
-                                       logprob_threshold=params.log_prob_threshold,
-                                       no_speech_threshold=params.no_speech_threshold,
-                                       task="translate" if params.is_translate else "transcribe",
-                                       fp16=True if params.compute_type == "float16" else False,
-                                       best_of=params.best_of,
-                                       patience=params.patience,
-                                       temperature=params.temperature,
-                                       compression_ratio_threshold=params.compression_ratio_threshold)["segments"]
+        result = self.model.transcribe(
+            audio=audio,
+            language=params.lang,
+            verbose=False,
+            beam_size=params.beam_size,
+            logprob_threshold=params.log_prob_threshold,
+            no_speech_threshold=params.no_speech_threshold,
+            task="translate" if params.is_translate else "transcribe",
+            fp16=True if params.compute_type == "float16" else False,
+            best_of=params.best_of,
+            patience=params.patience,
+            temperature=params.temperature,
+            compression_ratio_threshold=params.compression_ratio_threshold,
+            batch_size=params.batch_size,
+        )["segments"]
         segments_result = []
         for segment in result:
             segments_result.append(Segment(
@@ -111,3 +114,4 @@ class WhisperInference(BaseTranscriptionPipeline):
             device=self.device,
             download_root=self.model_dir
         )
+        self.model = torch.compile(model).half()

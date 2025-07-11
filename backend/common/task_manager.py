@@ -28,4 +28,8 @@ class TaskManager:
 # Global task manager instance
 # The number of workers can be tuned according to your hardware
 # One worker is often enough since Whisper models are GPU intensive
-manager = TaskManager()
+import os
+
+# Allow overriding worker count via TASK_WORKERS environment variable
+_workers = int(os.getenv("TASK_WORKERS", "2"))
+manager = TaskManager(workers=_workers)
