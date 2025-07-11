@@ -24,5 +24,3 @@ git+https://github.com/jhj0517/ultimatevocalremover_api.git
 git+https://github.com/jhj0517/pyrubberband.git
 noisereduce
 librosa
-noisereduce
-librosa

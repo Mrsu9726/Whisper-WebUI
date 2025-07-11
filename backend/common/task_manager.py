@@ -31,5 +31,6 @@ class TaskManager:
 import os
 
 # Allow overriding worker count via TASK_WORKERS environment variable
+# Increase this to >1 if you want multiple tasks processed concurrently
 _workers = int(os.getenv("TASK_WORKERS", "2"))
 manager = TaskManager(workers=_workers)

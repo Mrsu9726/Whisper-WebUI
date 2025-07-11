@@ -1,7 +1,7 @@
 from io import BytesIO
 import httpx
 import noisereduce as nr
-import librosa
+import faster_whisper
 from pydantic import BaseModel
 from fastapi import (
     HTTPException,
@@ -31,7 +31,8 @@ async def read_audio(
             raise HTTPException(status_code=422, detail="Could not download the file")
         file_content = file_response.content
     file_bytes = BytesIO(file_content)
-    y, sr = librosa.load(file_bytes, sr=16000)
-    audio = nr.reduce_noise(y=y, sr=sr)
+    audio = faster_whisper.audio.decode_audio(file_bytes)
+    # Apply basic noise reduction before running the model
+    audio = nr.reduce_noise(y=audio, sr=16000)
     duration = len(audio) / 16000
     return audio, AudioInfo(duration=duration)
