@@ -109,9 +109,10 @@ class WhisperInference(BaseTranscriptionPipeline):
         progress(0, desc="Initializing Model..")
         self.current_compute_type = compute_type
         self.current_model_size = model_size
-        self.model = whisper.load_model(
+        model = whisper.load_model(
             name=model_size,
             device=self.device,
             download_root=self.model_dir
         )
         self.model = torch.compile(model).half()
+
